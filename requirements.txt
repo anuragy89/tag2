@@ -1,0 +1,12 @@
+# ── Telegram MTProto Client ───────────────────────────────────────────────────
+# Kurigram is a maintained Pyrogram fork. It installs under the `pyrogram`
+# namespace so all imports stay as  `from pyrogram import ...`
+kurigram>=2.1.0
+
+# C-extension crypto — massively speeds up MTProto encryption/decryption
+TgCrypto>=1.2.5
+
+# ── MongoDB (async) ───────────────────────────────────────────────────────────
+motor>=3.3.2          # Official async MongoDB driver for asyncio
+pymongo>=4.6.1        # Motor depends on pymongo (sync layer)
+dnspython>=2.4.2      # Required for mongodb+srv:// connection strings (Atlas)
