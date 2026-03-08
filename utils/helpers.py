@@ -20,8 +20,7 @@ from pyrogram.errors import (
     FloodWait,
     PeerIdInvalid,
     RPCError,
-    UserNotParticipant,
-)
+    UserNotParticipant)
 from pyrogram.types import Message
 
 log = logging.getLogger(__name__)
@@ -34,8 +33,7 @@ async def safe_send(
     chat_id: int,
     text: str,
     retries: int = 3,
-    **kwargs,
-) -> Optional[Message]:
+    **kwargs) -> Optional[Message]:
     """Send a message with automatic FloodWait handling and retries."""
     for attempt in range(retries):
         try:
@@ -60,8 +58,7 @@ async def safe_edit(
     msg: Message,
     text: str,
     retries: int = 3,
-    **kwargs,
-) -> Optional[Message]:
+    **kwargs) -> Optional[Message]:
     """Edit a message with automatic FloodWait handling."""
     for attempt in range(retries):
         try:
@@ -82,8 +79,7 @@ async def is_admin(client: Client, chat_id: int, user_id: int) -> bool:
         member = await client.get_chat_member(chat_id, user_id)
         return member.status in (
             ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER,
-        )
+            ChatMemberStatus.OWNER)
     except (UserNotParticipant, RPCError):
         return False
     except Exception as e:
@@ -112,8 +108,7 @@ def admin_only(func):
         if not await is_admin(client, message.chat.id, uid):
             await message.reply_text(
                 "❌ **Access Denied!**\n\n"
-                "Only group admins can use this command. 🔒",
-                parse_mode="md",
+                "Only group admins can use this command. 🔒"
             )
             return
 
@@ -132,8 +127,7 @@ def owner_only(func):
 
         if not message.from_user or message.from_user.id != Config.OWNER_ID:
             await message.reply_text(
-                "👑 This command is **only for the bot owner**.",
-                parse_mode="md",
+                "👑 This command is **only for the bot owner**."
             )
             return
 
