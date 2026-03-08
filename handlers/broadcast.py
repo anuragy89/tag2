@@ -34,7 +34,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
             "📣 **Broadcast Usage:**\n\n"
             "`/broadcast Your message here`\n\n"
             "_Supports Markdown formatting._",
-            parse_mode="markdown",
+            parse_mode="md",
         )
         return
 
@@ -42,7 +42,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
 
     status_msg = await message.reply_text(
         "📡 **Broadcast starting…**\nFetching recipients — please wait.",
-        parse_mode="markdown",
+        parse_mode="md",
     )
 
     user_ids  = await get_all_user_ids()
@@ -57,12 +57,12 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
 
     for idx, (target_id, kind) in enumerate(all_targets, start=1):
         try:
-            await client.send_message(target_id, full_text, parse_mode="markdown")
+            await client.send_message(target_id, full_text, parse_mode="md")
             success += 1
         except FloodWait as e:
             await asyncio.sleep(e.value + 3)
             try:
-                await client.send_message(target_id, full_text, parse_mode="markdown")
+                await client.send_message(target_id, full_text, parse_mode="md")
                 success += 1
             except Exception:
                 failed += 1
@@ -78,7 +78,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
                     f"📡 **Broadcasting…**\n\n"
                     f"Progress : `{idx}` / `{total}`\n"
                     f"✅ Sent: `{success}` | ❌ Failed: `{failed}` | 🚫 Blocked: `{blocked}`",
-                    parse_mode="markdown",
+                    parse_mode="md",
                 )
             except Exception:
                 pass
@@ -94,7 +94,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
         f"📦 Total targets: `{total}` "
         f"(`{len(user_ids)}` users · `{len(chat_ids)}` groups)"
     )
-    await status_msg.edit_text(report, parse_mode="markdown")
+    await status_msg.edit_text(report, parse_mode="md")
 
 
 @owner_only
@@ -117,5 +117,5 @@ async def cmd_stats(client: Client, message: Message) -> None:
         f"⚡ **Active Tags :**   `{active_sessions}`\n\n"
         f"🗄️ **Database :** MongoDB\n"
         f"🤖 _Tag Master Bot – Online & Running!_ 🚀",
-        parse_mode="markdown",
+        parse_mode="md",
     )
