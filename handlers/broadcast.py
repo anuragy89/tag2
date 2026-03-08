@@ -11,8 +11,7 @@ from pyrogram.errors import (
     InputUserDeactivated,
     PeerIdInvalid,
     RPCError,
-    UserIsBlocked,
-)
+    UserIsBlocked)
 from pyrogram.types import Message
 
 from database import get_all_user_ids, get_all_chat_ids, count_users, count_groups
@@ -33,16 +32,14 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
         await message.reply_text(
             "📣 **Broadcast Usage:**\n\n"
             "`/broadcast Your message here`\n\n"
-            "_Supports Markdown formatting._",
-            parse_mode="md",
+            "_Supports Markdown formatting._"
         )
         return
 
     bc_text = parts[1].strip()
 
     status_msg = await message.reply_text(
-        "📡 **Broadcast starting…**\nFetching recipients — please wait.",
-        parse_mode="md",
+        "📡 **Broadcast starting…**\nFetching recipients — please wait."
     )
 
     user_ids  = await get_all_user_ids()
@@ -57,12 +54,12 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
 
     for idx, (target_id, kind) in enumerate(all_targets, start=1):
         try:
-            await client.send_message(target_id, full_text, parse_mode="md")
+            await client.send_message(target_id, full_text)
             success += 1
         except FloodWait as e:
             await asyncio.sleep(e.value + 3)
             try:
-                await client.send_message(target_id, full_text, parse_mode="md")
+                await client.send_message(target_id, full_text)
                 success += 1
             except Exception:
                 failed += 1
@@ -77,8 +74,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
                 await status_msg.edit_text(
                     f"📡 **Broadcasting…**\n\n"
                     f"Progress : `{idx}` / `{total}`\n"
-                    f"✅ Sent: `{success}` | ❌ Failed: `{failed}` | 🚫 Blocked: `{blocked}`",
-                    parse_mode="md",
+                    f"✅ Sent: `{success}` | ❌ Failed: `{failed}` | 🚫 Blocked: `{blocked}`"
                 )
             except Exception:
                 pass
@@ -94,7 +90,7 @@ async def cmd_broadcast(client: Client, message: Message) -> None:
         f"📦 Total targets: `{total}` "
         f"(`{len(user_ids)}` users · `{len(chat_ids)}` groups)"
     )
-    await status_msg.edit_text(report, parse_mode="md")
+    await status_msg.edit_text(report)
 
 
 @owner_only
@@ -116,6 +112,5 @@ async def cmd_stats(client: Client, message: Message) -> None:
         f"💬 **Total Groups :**  `{total_groups}`\n"
         f"⚡ **Active Tags :**   `{active_sessions}`\n\n"
         f"🗄️ **Database :** MongoDB\n"
-        f"🤖 _Tag Master Bot – Online & Running!_ 🚀",
-        parse_mode="md",
+        f"🤖 _Tag Master Bot – Online & Running!_ 🚀"
     )
