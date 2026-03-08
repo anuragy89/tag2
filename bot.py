@@ -18,7 +18,7 @@ import logging
 import signal
 import sys
 
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import Message
 
@@ -68,6 +68,7 @@ async def main() -> None:
         api_hash=Config.API_HASH,
         bot_token=Config.BOT_TOKEN,
         sleep_threshold=Config.FLOOD_SLEEP,
+        parse_mode=enums.ParseMode.MARKDOWN,
     )
 
     # ── 3. Import all handlers ────────────────────────────────────────────────
