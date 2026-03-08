@@ -125,7 +125,7 @@ async def cmd_start(client: Client, message: Message):
     name = message.from_user.first_name if message.from_user else "Friend"
     await message.reply_text(
         START_TEXT.format(name=name),
-        parse_mode="markdown",
+        parse_mode="md",
         reply_markup=main_keyboard(),
     )
 
@@ -135,7 +135,7 @@ async def cmd_start(client: Client, message: Message):
 async def cmd_help(client: Client, message: Message):
     await message.reply_text(
         HELP_TEXT,
-        parse_mode="markdown",
+        parse_mode="md",
         reply_markup=back_keyboard(),
     )
 
@@ -148,7 +148,7 @@ async def callback_handler(client: Client, query: CallbackQuery):
     if data == "cb_help":
         await query.message.edit_text(
             HELP_TEXT,
-            parse_mode="markdown",
+            parse_mode="md",
             reply_markup=back_keyboard(),
         )
 
@@ -156,7 +156,7 @@ async def callback_handler(client: Client, query: CallbackQuery):
         name = query.from_user.first_name if query.from_user else "Friend"
         await query.message.edit_text(
             START_TEXT.format(name=name),
-            parse_mode="markdown",
+            parse_mode="md",
             reply_markup=main_keyboard(),
         )
 
@@ -175,6 +175,6 @@ async def on_new_chat_member(client: Client, message: Message):
                 client,
                 chat.id,
                 GROUP_JOIN_MSG.format(chat_title=chat.title or "this group"),
-                parse_mode="markdown",
+                parse_mode="md",
             )
             break
