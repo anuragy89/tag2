@@ -113,7 +113,7 @@ def admin_only(func):
             await message.reply_text(
                 "❌ **Access Denied!**\n\n"
                 "Only group admins can use this command. 🔒",
-                parse_mode="markdown",
+                parse_mode="md",
             )
             return
 
@@ -133,7 +133,7 @@ def owner_only(func):
         if not message.from_user or message.from_user.id != Config.OWNER_ID:
             await message.reply_text(
                 "👑 This command is **only for the bot owner**.",
-                parse_mode="markdown",
+                parse_mode="md",
             )
             return
 
