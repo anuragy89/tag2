@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import motor.motor_asyncio
-from pymongo import UpdateOne
 
 from config import Config
 
@@ -30,26 +29,65 @@ groups_col: Optional[motor.motor_asyncio.AsyncIOMotorCollection] = None
 
 # ── Initialise ────────────────────────────────────────────────────────────────
 
+async def _deduplicate(col, key: str) -> None:
+    """
+    Remove duplicate documents keeping only the most recently inserted one.
+    Must run BEFORE creating a unique index on an existing collection.
+    """
+    pipeline = [
+        {"$group": {
+            "_id": f"${key}",
+            "count": {"$sum": 1},
+            "ids":   {"$push": "$_id"},
+        }},
+        {"$match": {"count": {"$gt": 1}}},
+    ]
+    async for doc in col.aggregate(pipeline):
+        # Keep the last _id, delete all others
+        ids_to_delete = doc["ids"][:-1]
+        await col.delete_many({"_id": {"$in": ids_to_delete}})
+        log.warning("Removed %d duplicate(s) for %s=%s", len(ids_to_delete), key, doc["_id"])
+
+
 async def init_db() -> None:
-    """Connect to MongoDB and ensure indexes exist."""
+    """Connect to MongoDB, deduplicate existing data, and ensure indexes exist."""
     global _client, _db, users_col, groups_col
 
     _client = motor.motor_asyncio.AsyncIOMotorClient(
         Config.MONGO_URI,
-        serverSelectionTimeoutMS=10_000,   # fail fast if URI is wrong
+        serverSelectionTimeoutMS=10_000,
     )
     _db = _client[Config.MONGO_DB_NAME]
 
     users_col  = _db["users"]
     groups_col = _db["groups"]
 
-    # Unique indexes (safe to call repeatedly – MongoDB is idempotent here)
-    await users_col.create_index("user_id",  unique=True, background=True)
-    await groups_col.create_index("chat_id", unique=True, background=True)
-
-    # Verify connection is alive
+    # Verify connection is alive first
     await _client.admin.command("ping")
     log.info("✅ MongoDB connected  –  db: %s", Config.MONGO_DB_NAME)
+
+    # Step 1: Remove any existing duplicates BEFORE creating unique indexes.
+    # This handles the case where the bot was previously run without unique indexes.
+    await _deduplicate(users_col,  "user_id")
+    await _deduplicate(groups_col, "chat_id")
+
+    # Step 2: Create unique indexes. Using try/except so a pre-existing
+    # valid unique index (already built) doesn't crash startup.
+    try:
+        await users_col.create_index(
+            "user_id", unique=True, background=False
+        )
+        log.info("✅ Index ensured: users.user_id (unique)")
+    except Exception as e:
+        log.warning("users.user_id index: %s", e)
+
+    try:
+        await groups_col.create_index(
+            "chat_id", unique=True, background=False
+        )
+        log.info("✅ Index ensured: groups.chat_id (unique)")
+    except Exception as e:
+        log.warning("groups.chat_id index: %s", e)
 
 
 async def close_db() -> None:
