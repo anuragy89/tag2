@@ -20,7 +20,6 @@ import logging
 
 from pyrogram import Client
 from pyrogram.errors import (
-    BotBlocked,
     ChannelInvalid,
     ChannelPrivate,
     ChatAdminRequired,
@@ -46,11 +45,6 @@ _BLOCKED_ERRORS = (
     ChannelInvalid, ChannelPrivate, ChatWriteForbidden,
     ChatAdminRequired, UserNotParticipant,
 )
-
-try:
-    _BLOCKED_ERRORS = _BLOCKED_ERRORS + (BotBlocked,)
-except Exception:
-    pass   # older Pyrogram builds may not have BotBlocked
 
 
 async def _send_one(client: Client, target_id: int, message: Message,
