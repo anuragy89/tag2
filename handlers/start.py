@@ -49,9 +49,6 @@ def back_keyboard() -> InlineKeyboardMarkup:
 # ── Message templates ─────────────────────────────────────────────────────────
 
 START_TEXT = """
-╔══════════════════════════╗
-║   🏷️  **TAG MASTER BOT**  ║
-╚══════════════════════════╝
 
 👋 Hey **{name}**! Welcome!
 
