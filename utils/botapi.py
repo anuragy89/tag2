@@ -1,36 +1,24 @@
 """
-utils/botapi.py – Thin async wrapper around the Telegram Bot API HTTP endpoint.
+utils/botapi.py – Bot API HTTP wrapper + premium emoji helpers.
 
-WHY THIS EXISTS:
-  Kurigram (our MTProto library) lags behind the HTTP Bot API.
-  Bot API 9.4 added two fields to InlineKeyboardButton that Kurigram's
-  high-level types don't expose yet:
+WHY:
+  Kurigram (MTProto) doesn't expose Bot API 9.4 features:
+    • InlineKeyboardButton.style  (danger=red, primary=blue, success=green)
+    • InlineKeyboardButton.icon_custom_emoji_id
+    • <tg-emoji emoji-id="...">  in HTML messages (premium animated emoji)
 
-    • style              → "danger" (red) | "primary" (blue) | "success" (green)
-    • icon_custom_emoji_id → custom emoji shown before button text
-                           (requires bot owner to have Telegram Premium)
+  We call api.telegram.org directly via aiohttp for all structured messages.
 
-  This module calls api.telegram.org directly using aiohttp so we can use
-  these new fields without waiting for Kurigram to update.
-
-USAGE:
-  from utils.botapi import send_styled, edit_styled
-
-  await send_styled(
-      token  = Config.BOT_TOKEN,
-      chat_id= chat.id,
-      text   = "Hello!",
-      keyboard=[
-          [{"text": "🔴 Add to Group", "url": "...",           "style": "danger"}],
-          [{"text": "Help",            "callback_data": "...", "style": "primary"},
-           {"text": "Updates",         "url": "...",           "style": "primary"}],
-          [{"text": "Support",         "url": "...",           "style": "success"}],
-      ],
-  )
+PREMIUM EMOJI IN TEXT:
+  HTML parse mode supports:  <tg-emoji emoji-id="DOCUMENT_ID">🔥</tg-emoji>
+  Use the te() helper:       te("fire", "🔥")
+  → returns full tg-emoji tag if ID is set in config, plain emoji otherwise.
+  → every user sees the animated emoji; Premium only needed on the sender.
 """
 
+import html
 import logging
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import aiohttp
 
@@ -41,15 +29,60 @@ log = logging.getLogger(__name__)
 _BASE = f"https://api.telegram.org/bot{Config.BOT_TOKEN}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  Premium emoji helper
+# ══════════════════════════════════════════════════════════════════════════════
+
+def te(key: str, fallback: str) -> str:
+    """
+    Return an animated premium emoji tag for use in HTML messages.
+
+    If Config.PREMIUM_EMOJI[key] has a document ID:
+        returns  <tg-emoji emoji-id="ID">fallback</tg-emoji>
+    Otherwise:
+        returns  fallback  (plain emoji, no crash)
+
+    Usage in message strings:
+        f"{te('fire', '🔥')} Bot is LIVE!"
+        f"{te('crown', '👑')} Owner Commands"
+    """
+    doc_id = Config.PREMIUM_EMOJI.get(key, "")
+    if doc_id:
+        return f'<tg-emoji emoji-id="{doc_id}">{fallback}</tg-emoji>'
+    return fallback
+
+
+def h(text: str) -> str:
+    """Escape a plain string for safe insertion into HTML message text."""
+    return html.escape(str(text))
+
+
+def b(text: str) -> str:
+    """Bold in HTML."""
+    return f"<b>{text}</b>"
+
+
+def i(text: str) -> str:
+    """Italic in HTML."""
+    return f"<i>{text}</i>"
+
+
+def code(text: str) -> str:
+    """Inline code in HTML."""
+    return f"<code>{html.escape(str(text))}</code>"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Button builder
+# ══════════════════════════════════════════════════════════════════════════════
+
 def _btn(text: str, emoji_key: str = "", **kwargs) -> dict:
     """
     Build one InlineKeyboardButton dict.
-    Automatically adds icon_custom_emoji_id when a non-empty ID is configured
-    in Config.PREMIUM_EMOJI for the given emoji_key.
+    Auto-adds icon_custom_emoji_id when a non-empty ID is set in config.
 
-    Usage:
-        _btn("➕ Add to Group", "add", url="...", style="danger")
-        _btn("📋 Help",        "help", callback_data="cb_help", style="primary")
+    _btn("➕ Add to Group", "add", url="...", style="danger")
+    _btn("📋 Help",        "help", callback_data="cb_help", style="primary")
     """
     button = {"text": text, **kwargs}
     if emoji_key:
@@ -59,8 +92,11 @@ def _btn(text: str, emoji_key: str = "", **kwargs) -> dict:
     return button
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  HTTP helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
 async def _call(method: str, payload: dict) -> Optional[dict]:
-    """POST one Bot API method and return the result dict, or None on error."""
     url = f"{_BASE}/{method}"
     try:
         async with aiohttp.ClientSession() as session:
@@ -71,38 +107,32 @@ async def _call(method: str, payload: dict) -> Optional[dict]:
                     return None
                 return data.get("result")
     except aiohttp.ClientError as e:
-        log.error("aiohttp error calling %s: %s", method, e)
+        log.error("aiohttp ClientError %s: %s", method, e)
         return None
     except Exception as e:
-        log.error("Unexpected error calling %s: %s", method, e)
+        log.error("Unexpected error %s: %s", method, e)
         return None
 
 
-def _build_markup(keyboard: List[List[dict]]) -> dict:
-    """Wrap a list-of-rows into a Bot API reply_markup dict."""
+def _markup(keyboard: List[List[dict]]) -> dict:
     return {"inline_keyboard": keyboard}
 
+
+# ── Send / edit with styled keyboard (HTML parse mode) ───────────────────────
 
 async def send_styled(
     chat_id: int,
     text: str,
     keyboard: List[List[dict]],
-    parse_mode: str = "Markdown",
+    parse_mode: str = "HTML",
     disable_web_page_preview: bool = True,
 ) -> Optional[dict]:
-    """
-    Send a message with colored/icon inline buttons via Bot API HTTP.
-
-    Each button dict supports all standard Bot API InlineKeyboardButton fields
-    plus the Bot API 9.4 additions:
-      - style: "danger" | "primary" | "success"
-      - icon_custom_emoji_id: str  (requires bot owner Telegram Premium)
-    """
+    """Send a message with colored + emoji-icon inline buttons."""
     return await _call("sendMessage", {
         "chat_id":                  chat_id,
         "text":                     text,
         "parse_mode":               parse_mode,
-        "reply_markup":             _build_markup(keyboard),
+        "reply_markup":             _markup(keyboard),
         "disable_web_page_preview": disable_web_page_preview,
     })
 
@@ -112,13 +142,47 @@ async def edit_styled(
     message_id: int,
     text: str,
     keyboard: List[List[dict]],
-    parse_mode: str = "Markdown",
+    parse_mode: str = "HTML",
 ) -> Optional[dict]:
-    """Edit a message's text + styled keyboard via Bot API HTTP."""
+    """Edit a message text + keyboard (HTML + colored buttons)."""
     return await _call("editMessageText", {
-        "chat_id":    chat_id,
-        "message_id": message_id,
-        "text":       text,
-        "parse_mode": parse_mode,
-        "reply_markup": _build_markup(keyboard),
+        "chat_id":      chat_id,
+        "message_id":   message_id,
+        "text":         text,
+        "parse_mode":   parse_mode,
+        "reply_markup": _markup(keyboard),
+    })
+
+
+async def send_html(
+    chat_id: int,
+    text: str,
+    disable_web_page_preview: bool = True,
+) -> Optional[dict]:
+    """
+    Send a plain HTML message (no keyboard) with premium emoji support.
+    Use this everywhere instead of client.send_message() so tg-emoji renders.
+    Falls back gracefully if the HTTP call fails (caller should handle None).
+    """
+    return await _call("sendMessage", {
+        "chat_id":                  chat_id,
+        "text":                     text,
+        "parse_mode":               "HTML",
+        "disable_web_page_preview": disable_web_page_preview,
+    })
+
+
+async def reply_html(
+    chat_id: int,
+    reply_to_message_id: int,
+    text: str,
+    disable_web_page_preview: bool = True,
+) -> Optional[dict]:
+    """Reply to a specific message with HTML text + premium emoji."""
+    return await _call("sendMessage", {
+        "chat_id":                  chat_id,
+        "reply_to_message_id":      reply_to_message_id,
+        "text":                     text,
+        "parse_mode":               "HTML",
+        "disable_web_page_preview": disable_web_page_preview,
     })
