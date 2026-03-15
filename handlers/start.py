@@ -1,11 +1,7 @@
 """
 handlers/start.py – /start, /help, callbacks, group join.
 
-Button colors use Bot API 9.4 style field (danger=red, primary=blue, success=green)
-sent via direct HTTP (utils/botapi.py) because Kurigram's MTProto layer doesn't
-expose these fields in its high-level types yet.
-
-icon_custom_emoji_id on buttons works only if the bot owner has Telegram Premium.
+All messages use HTML parse mode + te() for animated premium emoji.
 """
 
 import logging
@@ -21,145 +17,117 @@ from pyrogram.types import (
 from config import Config
 from database import upsert_user, upsert_group
 from utils import GROUP_JOIN_MSG
-from utils.botapi import send_styled, edit_styled, _btn
+from utils.botapi import send_styled, edit_styled, _btn, te
 
 log = logging.getLogger(__name__)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Keyboard definitions
-#  Two versions of every keyboard:
-#   • _styled_*  → list-of-rows dicts   → sent via botapi.py  (colored buttons)
-#   • _fallback_*→ InlineKeyboardMarkup → used if styled send fails
+#  Keyboards  (colored + premium emoji icons via Bot API 9.4)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _styled_main_kb() -> list:
-    """Main /start keyboard with colored + premium emoji buttons."""
     return [
-        [
-            _btn("➕ Add to Your Group", "add",
-                 url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
-                 style="danger"),
-        ],
-        [
-            _btn("📋 Help & Commands", "help",
-                 callback_data="cb_help", style="primary"),
-            _btn("📢 Updates", "updates",
-                 url=Config.UPDATES_CHANNEL, style="primary"),
-        ],
-        [
-            _btn("💬 Support", "support",
-                 url=Config.SUPPORT_GROUP, style="success"),
-        ],
+        [_btn("➕ Add to Your Group", "add",
+              url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
+              style="danger")],
+        [_btn("📋 Help & Commands", "help",
+              callback_data="cb_help", style="primary"),
+         _btn("📢 Updates", "updates",
+              url=Config.UPDATES_CHANNEL, style="primary")],
+        [_btn("💬 Support", "support",
+              url=Config.SUPPORT_GROUP, style="success")],
     ]
-
 
 def _styled_back_kb() -> list:
-    return [[_btn("🔙 Back", "back", callback_data="cb_back", style="primary")]]
-
+    return [[_btn("🔙 Back", "back",
+                  callback_data="cb_back", style="primary")]]
 
 def _styled_group_kb() -> list:
-    """Welcome keyboard shown when bot is added to a group."""
     return [
-        [
-            _btn("➕ Add to Your Group", "add",
-                 url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
-                 style="danger"),
-        ],
-        [
-            _btn("📋 Help & Commands", "help",
-                 callback_data="cb_help", style="primary"),
-            _btn("📢 Updates", "updates",
-                 url=Config.UPDATES_CHANNEL, style="primary"),
-        ],
-        [
-            _btn("💬 Support", "support",
-                 url=Config.SUPPORT_GROUP, style="success"),
-        ],
+        [_btn("➕ Add to Your Group", "add",
+              url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
+              style="danger")],
+        [_btn("📋 Help & Commands", "help",
+              callback_data="cb_help", style="primary"),
+         _btn("📢 Updates", "updates",
+              url=Config.UPDATES_CHANNEL, style="primary")],
+        [_btn("💬 Support", "support",
+              url=Config.SUPPORT_GROUP, style="success")],
     ]
 
-
-# ── Plain InlineKeyboardMarkup fallbacks (used if aiohttp call fails) ─────────
+# ── Plain fallback keyboards (if HTTP call fails) ─────────────────────────────
 
 def _fallback_main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Add to Your Group",
                               url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true")],
         [InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
-         InlineKeyboardButton("📢 Updates",         url=Config.UPDATES_CHANNEL)],
-        [InlineKeyboardButton("💬 Support",          url=Config.SUPPORT_GROUP)],
+         InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL)],
+        [InlineKeyboardButton("💬 Support", url=Config.SUPPORT_GROUP)],
     ])
 
-
 def _fallback_back_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="cb_back")]])
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔙 Back", callback_data="cb_back")
+    ]])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Message templates
+#  Message templates  (HTML + te() for premium emoji)
 # ══════════════════════════════════════════════════════════════════════════════
 
-START_TEXT = """
+def start_text(name: str) -> str:
+    return (
+        f"{te('wave','👋')} Hey <b>{name}</b>! Welcome!\n\n"
+        f"I'm the most powerful <b>Tagging Bot</b> on Telegram "
+        f"{te('rocket','🚀')}\n\n"
+        f"{te('star','🌟')} <b>8 Tagging Styles</b>\n"
+        f"   ├ Hindi • English • Hinglish\n"
+        f"   ├ Good Morning &amp; Good Night tags\n"
+        f"   ├ Joke tags &amp; General tags\n"
+        f"   ├ Tag all members OR only admins\n"
+        f"   └ Custom message support!\n\n"
+        f"{te('lightning','⚡')} <b>Smart Controls</b>\n"
+        f"   ├ /stop • /pause • /resume\n"
+        f"   └ Only admins can control tagging\n\n"
+        f"{te('shield','🛡️')} <b>Spam Protection</b>\n"
+        f"   └ Built-in flood-wait guard\n\n"
+        f"{te('chart','📊')} <b>Owner Tools</b>\n"
+       
+        f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Pick an option below to get started! {te('sparkle','✨')}"
+    )
 
-👋 Hey **{name}**! Welcome!
 
-I'm the most powerful **Tagging Bot** on Telegram 🚀
-Here's what I can do for you:
-
-🌟 **8 Tagging Styles**
-   ├ Hindi • English • Hinglish
-   ├ Good Morning & Good Night tags
-   ├ Joke tags & General tags
-   ├ Tag all members OR only admins
-   └ Custom message support!
-
-⚡ **Smart Controls**
-   ├ /stop • /pause • /resume
-   └ Only admins can control tagging
-
-🛡️ **Spam Protection**
-   └ Built-in flood-wait guard
-
-━━━━━━━━━━━━━━━━━━━━━━━
-Pick an option below to get started! 👇
-"""
-
-HELP_TEXT = """
-📋 **ALL COMMANDS**
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🏷️ **Tagging Commands** _(Admins only)_
-
-`/hitag`  — Tag all members in **Hindi** 🇮🇳
-`/entag`  — Tag all members in **English** 🇬🇧
-`/gmtag`  — **Good Morning** tag (Hinglish) 🌅
-`/gntag`  — **Good Night** tag (Hinglish) 🌙
-`/tagall` — General tag, all members (Hinglish) 🔥
-`/jtag`   — **Joke** tag, all members (Hinglish) 😂
-
-🎯 **Mention Commands**
-
-`/admin` or `@admin` — Tag **only admins** (6 per msg)
-`/all`   or `@all`   — Tag **all members** (6 per msg)
-  _Supports custom messages: `/admin plz join vc`_
-
-⏸️ **Control Commands** _(Admins only)_
-
-`/stop`   — ❌ Stop ongoing tagging
-`/pause`  — ⏸️ Pause tagging temporarily
-`/resume` — ▶️ Resume paused tagging
-
-👑 **Owner Commands**
-
-`/broadcast <msg>` — Broadcast to all users & groups
-`/stats` — View bot usage statistics
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 **Tips:**
-• All tagging cmds auto-stop when complete
-• Use /stop anytime to cancel tagging
-• Add me as admin for best performance!
-"""
+def help_text() -> str:
+    return (
+        f"{te('chart','📋')} <b>ALL COMMANDS</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{te('tag','🏷️')} <b>Tagging Commands</b> <i>(Admins only)</i>\n\n"
+        f"<code>/hitag</code>  — Tag all members in <b>Hindi</b> 🇮🇳\n"
+        f"<code>/entag</code>  — Tag all members in <b>English</b> 🇬🇧\n"
+        f"<code>/gmtag</code>  — <b>Good Morning</b> tag (Hinglish) 🌅\n"
+        f"<code>/gntag</code>  — <b>Good Night</b> tag (Hinglish) 🌙\n"
+        f"<code>/tagall</code> — General tag, all members {te('fire','🔥')}\n"
+        f"<code>/jtag</code>   — <b>Joke</b> tag, all members 😂\n\n"
+        f"{te('target','🎯')} <b>Mention Commands</b>\n\n"
+        f"<code>/admin</code> or <code>@admin</code> — Tag <b>only admins</b> (6 per msg)\n"
+        f"<code>/all</code>   or <code>@all</code>   — Tag <b>all members</b> (6 per msg)\n"
+        f"   <i>Supports custom messages: /admin plz join vc</i>\n\n"
+        f"{te('pause','⏸️')} <b>Control Commands</b> <i>(Admins only)</i>\n\n"
+        f"<code>/stop</code>   — {te('cross','❌')} Stop ongoing tagging\n"
+        f"<code>/pause</code>  — ⏸️ Pause tagging temporarily\n"
+        f"<code>/resume</code> — ▶️ Resume paused tagging\n\n"
+        f"{te('crown','👑')} <b>Owner Commands</b>\n\n"
+        f"<code>/broadcast &lt;msg&gt;</code> — Broadcast to all users &amp; groups\n"
+        f"<code>/stats</code> — View bot usage statistics\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{te('bulb','💡')} <b>Tips:</b>\n"
+        f"• All tagging cmds auto-stop when complete\n"
+        f"• Use /stop anytime to cancel tagging\n"
+        f"• Add me as admin for best performance!"
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -174,44 +142,62 @@ async def cmd_start(client: Client, message: Message) -> None:
             message.from_user.full_name,
         )
     name = message.from_user.first_name if message.from_user else "Friend"
-    text = START_TEXT.format(name=name)
-
-    # Try styled (colored) buttons first; fall back to plain if aiohttp fails
+    text = start_text(name)
+    # Always use Bot API HTTP so HTML + tg-emoji renders correctly.
+    # Kurigram's send_message uses the client's default parse mode (Markdown)
+    # which does NOT render <tg-emoji> tags — must use HTTP for this.
     result = await send_styled(message.chat.id, text, _styled_main_kb())
     if not result:
-        await message.reply_text(text, reply_markup=_fallback_main_kb())
+        # Fallback: plain Pyrogram send with HTML parse mode forced
+        from pyrogram import enums
+        await message.reply_text(
+            text,
+            parse_mode=enums.ParseMode.HTML,
+            reply_markup=_fallback_main_kb(),
+        )
 
 
 async def cmd_help(client: Client, message: Message) -> None:
-    result = await send_styled(message.chat.id, HELP_TEXT, _styled_back_kb())
+    text = help_text()
+    result = await send_styled(message.chat.id, text, _styled_back_kb())
     if not result:
-        await message.reply_text(HELP_TEXT, reply_markup=_fallback_back_kb())
+        from pyrogram import enums
+        await message.reply_text(
+            text,
+            parse_mode=enums.ParseMode.HTML,
+            reply_markup=_fallback_back_kb(),
+        )
 
 
 async def callback_handler(client: Client, query: CallbackQuery) -> None:
     data    = query.data
     chat_id = query.message.chat.id
     msg_id  = query.message.id
+    from pyrogram import enums
 
     if data == "cb_help":
-        result = await edit_styled(chat_id, msg_id, HELP_TEXT, _styled_back_kb())
+        text = help_text()
+        result = await edit_styled(chat_id, msg_id, text, _styled_back_kb())
         if not result:
-            await query.message.edit_text(HELP_TEXT, reply_markup=_fallback_back_kb())
+            await query.message.edit_text(
+                text, parse_mode=enums.ParseMode.HTML,
+                reply_markup=_fallback_back_kb(),
+            )
 
     elif data == "cb_back":
         name = query.from_user.first_name if query.from_user else "Friend"
-        text = START_TEXT.format(name=name)
+        text = start_text(name)
         result = await edit_styled(chat_id, msg_id, text, _styled_main_kb())
         if not result:
-            await query.message.edit_text(text, reply_markup=_fallback_main_kb())
+            await query.message.edit_text(
+                text, parse_mode=enums.ParseMode.HTML,
+                reply_markup=_fallback_main_kb(),
+            )
 
     await query.answer()
 
 
-# ── Handler: bot added to a group ────────────────────────────────────────────
-
 async def on_new_chat_member(client: Client, message: Message) -> None:
-    # Use cached client.me — avoids a network round-trip on every join event
     bot_id = client.me.id if client.me else None
     if bot_id is None:
         try:
@@ -219,7 +205,6 @@ async def on_new_chat_member(client: Client, message: Message) -> None:
         except Exception:
             return
 
-    # Only fire when it's THIS BOT being added, not regular members
     if not any(m.id == bot_id for m in (message.new_chat_members or [])):
         return
 
@@ -229,22 +214,20 @@ async def on_new_chat_member(client: Client, message: Message) -> None:
     except Exception as e:
         log.warning("upsert_group failed for %s: %s", chat.id, e)
 
-    text = GROUP_JOIN_MSG.format(chat_title=chat.title or "this group")
-
-    # Try colored buttons first via Bot API HTTP
+    text = GROUP_JOIN_MSG(chat.title or "this group")
     result = await send_styled(chat.id, text, _styled_group_kb())
     if not result:
-        # Fallback to Kurigram's regular send
+        from pyrogram import enums
         try:
             await client.send_message(
-                chat.id,
-                text,
+                chat.id, text,
+                parse_mode=enums.ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(" Add to Your Group",
+                    [InlineKeyboardButton("➕ Add to Your Group",
                                          url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true")],
-                    [InlineKeyboardButton(" Help ", callback_data="cb_help"),
-                     InlineKeyboardButton(" Updates", url=Config.UPDATES_CHANNEL)],
-                    [InlineKeyboardButton(" Support", url=Config.SUPPORT_GROUP)],
+                    [InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
+                     InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL)],
+                    [InlineKeyboardButton("💬 Support", url=Config.SUPPORT_GROUP)],
                 ])
             )
         except Exception as e:
