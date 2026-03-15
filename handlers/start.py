@@ -1,6 +1,11 @@
 """
-handlers/start.py – /start, /help, inline button callbacks, group join handler.
-parse_mode is set globally on the Client in bot.py — no per-call arg needed.
+handlers/start.py – /start, /help, callbacks, group join.
+
+Button colors use Bot API 9.4 style field (danger=red, primary=blue, success=green)
+sent via direct HTTP (utils/botapi.py) because Kurigram's MTProto layer doesn't
+expose these fields in its high-level types yet.
+
+icon_custom_emoji_id on buttons works only if the bot owner has Telegram Premium.
 """
 
 import logging
@@ -16,37 +21,105 @@ from pyrogram.types import (
 from config import Config
 from database import upsert_user, upsert_group
 from utils import GROUP_JOIN_MSG
+from utils.botapi import send_styled, edit_styled
 
 log = logging.getLogger(__name__)
 
 
-# ── Keyboard helpers ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  Keyboard definitions
+#  Two versions of every keyboard:
+#   • _styled_*  → list-of-rows dicts   → sent via botapi.py  (colored buttons)
+#   • _fallback_*→ InlineKeyboardMarkup → used if styled send fails
+# ══════════════════════════════════════════════════════════════════════════════
 
-def main_keyboard() -> InlineKeyboardMarkup:
+def _styled_main_kb() -> list:
+    """Main /start keyboard with colored buttons (Bot API 9.4 style field)."""
+    return [
+        [
+            {
+                "text":  "➕ Add to Your Group",
+                "url":   f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
+                "style": "danger",          # 🔴 red
+            }
+        ],
+        [
+            {
+                "text":          "📋 Help & Commands",
+                "callback_data": "cb_help",
+                "style":         "primary",  # 🔵 blue
+            },
+            {
+                "text":  "📢 Updates",
+                "url":   Config.UPDATES_CHANNEL,
+                "style": "primary",          # 🔵 blue
+            },
+        ],
+        [
+            {
+                "text":  "💬 Support",
+                "url":   Config.SUPPORT_GROUP,
+                "style": "success",          # 🟢 green
+            }
+        ],
+    ]
+
+
+def _styled_back_kb() -> list:
+    return [[{"text": "🔙 Back", "callback_data": "cb_back", "style": "primary"}]]
+
+
+def _styled_group_kb() -> list:
+    """Welcome keyboard shown when bot is added to a group."""
+    return [
+        [
+            {
+                "text":  "➕ Add to Your Group",
+                "url":   f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
+                "style": "danger",          # 🔴 red
+            }
+        ],
+        [
+            {
+                "text":          "📋 Help & Commands",
+                "callback_data": "cb_help",
+                "style":         "primary",  # 🔵 blue
+            },
+            {
+                "text":  "📢 Updates",
+                "url":   Config.UPDATES_CHANNEL,
+                "style": "primary",          # 🔵 blue
+            },
+        ],
+        [
+            {
+                "text":  "💬 Support",
+                "url":   Config.SUPPORT_GROUP,
+                "style": "success",          # 🟢 green
+            }
+        ],
+    ]
+
+
+# ── Plain InlineKeyboardMarkup fallbacks (used if aiohttp call fails) ─────────
+
+def _fallback_main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                "➕ Add Me To Your Group",
-                url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
-            ),
-        ],
-        [
-            InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
-            InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL),
-        ],
-        [
-            InlineKeyboardButton("💬 Support", url=Config.SUPPORT_GROUP),
-        ],
+        [InlineKeyboardButton("➕ Add to Your Group",
+                              url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true")],
+        [InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
+         InlineKeyboardButton("📢 Updates",         url=Config.UPDATES_CHANNEL)],
+        [InlineKeyboardButton("💬 Support",          url=Config.SUPPORT_GROUP)],
     ])
 
 
-def back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔙 Back", callback_data="cb_back"),
-    ]])
+def _fallback_back_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="cb_back")]])
 
 
-# ── Message templates ─────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  Message templates
+# ══════════════════════════════════════════════════════════════════════════════
 
 START_TEXT = """
 
@@ -68,9 +141,6 @@ Here's what I can do for you:
 
 🛡️ **Spam Protection**
    └ Built-in flood-wait guard
-
-📊 **Owner Tools**
-   └ /broadcast & /stats
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 Pick an option below to get started! 👇
@@ -114,7 +184,9 @@ HELP_TEXT = """
 """
 
 
-# ── Handler: /start ───────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  Handlers
+# ══════════════════════════════════════════════════════════════════════════════
 
 async def cmd_start(client: Client, message: Message) -> None:
     if message.from_user:
@@ -124,37 +196,36 @@ async def cmd_start(client: Client, message: Message) -> None:
             message.from_user.full_name,
         )
     name = message.from_user.first_name if message.from_user else "Friend"
-    await message.reply_text(
-        START_TEXT.format(name=name),
-        reply_markup=main_keyboard(),
-    )
+    text = START_TEXT.format(name=name)
 
+    # Try styled (colored) buttons first; fall back to plain if aiohttp fails
+    result = await send_styled(message.chat.id, text, _styled_main_kb())
+    if not result:
+        await message.reply_text(text, reply_markup=_fallback_main_kb())
 
-# ── Handler: /help ────────────────────────────────────────────────────────────
 
 async def cmd_help(client: Client, message: Message) -> None:
-    await message.reply_text(
-        HELP_TEXT,
-        reply_markup=back_keyboard(),
-    )
+    result = await send_styled(message.chat.id, HELP_TEXT, _styled_back_kb())
+    if not result:
+        await message.reply_text(HELP_TEXT, reply_markup=_fallback_back_kb())
 
-
-# ── Callback: inline keyboard buttons ────────────────────────────────────────
 
 async def callback_handler(client: Client, query: CallbackQuery) -> None:
-    data = query.data
+    data    = query.data
+    chat_id = query.message.chat.id
+    msg_id  = query.message.id
 
     if data == "cb_help":
-        await query.message.edit_text(
-            HELP_TEXT,
-            reply_markup=back_keyboard(),
-        )
+        result = await edit_styled(chat_id, msg_id, HELP_TEXT, _styled_back_kb())
+        if not result:
+            await query.message.edit_text(HELP_TEXT, reply_markup=_fallback_back_kb())
+
     elif data == "cb_back":
         name = query.from_user.first_name if query.from_user else "Friend"
-        await query.message.edit_text(
-            START_TEXT.format(name=name),
-            reply_markup=main_keyboard(),
-        )
+        text = START_TEXT.format(name=name)
+        result = await edit_styled(chat_id, msg_id, text, _styled_main_kb())
+        if not result:
+            await query.message.edit_text(text, reply_markup=_fallback_main_kb())
 
     await query.answer()
 
@@ -162,33 +233,43 @@ async def callback_handler(client: Client, query: CallbackQuery) -> None:
 # ── Handler: bot added to a group ────────────────────────────────────────────
 
 async def on_new_chat_member(client: Client, message: Message) -> None:
-    bot_me = await client.get_me()
-    for member in message.new_chat_members:
-        if member.id == bot_me.id:
-            chat = message.chat
-            await upsert_group(
+    # Use cached client.me — avoids a network round-trip on every join event
+    bot_id = client.me.id if client.me else None
+    if bot_id is None:
+        try:
+            bot_id = (await client.get_me()).id
+        except Exception:
+            return
+
+    # Only fire when it's THIS BOT being added, not regular members
+    if not any(m.id == bot_id for m in (message.new_chat_members or [])):
+        return
+
+    chat = message.chat
+    try:
+        await upsert_group(chat.id, chat.title, getattr(chat, "username", None))
+    except Exception as e:
+        log.warning("upsert_group failed for %s: %s", chat.id, e)
+
+    text = GROUP_JOIN_MSG.format(chat_title=chat.title or "this group")
+
+    # Try colored buttons first via Bot API HTTP
+    result = await send_styled(chat.id, text, _styled_group_kb())
+    if not result:
+        # Fallback to Kurigram's regular send
+        try:
+            await client.send_message(
                 chat.id,
-                chat.title,
-                getattr(chat, "username", None),
+                text,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("➕ Add to Your Group",
+                                         url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true")],
+                    [InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
+                     InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL)],
+                    [InlineKeyboardButton("💬 Support", url=Config.SUPPORT_GROUP)],
+                ])
             )
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        "➕ Add to Your Group",
-                        url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true",
-                    ),
-                ],
-                [
-                    InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
-                    InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL),
-                ],
-            ])
-            try:
-                await client.send_message(
-                    chat.id,
-                    GROUP_JOIN_MSG.format(chat_title=chat.title or "this group"),
-                    reply_markup=keyboard,
-                )
-            except Exception as e:
-                log.warning("Could not send group join msg to %s: %s", chat.id, e)
-            break
+        except Exception as e:
+            log.warning("Could not send group join msg to %s: %s", chat.id, e)
+    else:
+        log.info("Sent styled group join msg to %s (%s)", chat.title, chat.id)
