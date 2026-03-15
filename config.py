@@ -1,46 +1,87 @@
 """
 config.py – All bot configuration loaded from environment variables.
-Set these via Heroku Config Vars or a local .env file.
 """
 
 import os
 
 
 class Config:
-    # ── Core Telegram Credentials ──────────────────────────────────────────────
-    API_ID          = int(os.environ.get("API_ID", 0))
-    API_HASH        = os.environ.get("API_HASH", "")
-    BOT_TOKEN       = os.environ.get("BOT_TOKEN", "")
+    # ── Core Telegram Credentials ─────────────────────────────────────────────
+    API_ID    = int(os.environ.get("API_ID", 0))
+    API_HASH  = os.environ.get("API_HASH", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 
-    # ── Owner ──────────────────────────────────────────────────────────────────
-    OWNER_ID        = int(os.environ.get("OWNER_ID", 0))
+    # ── Owner ─────────────────────────────────────────────────────────────────
+    OWNER_ID  = int(os.environ.get("OWNER_ID", 0))
 
-    # ── MongoDB ────────────────────────────────────────────────────────────────
-    # On Heroku: heroku config:set MONGO_URI="mongodb+srv://user:pass@cluster.mongodb.net"
-    # Free cluster: https://cloud.mongodb.com
-    MONGO_URI       = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
-    MONGO_DB_NAME   = os.environ.get("MONGO_DB_NAME", "tagbot")
+    # ── MongoDB ───────────────────────────────────────────────────────────────
+    MONGO_URI     = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+    MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "tagbot")
 
     # ── Tagging Speed / Flood Protection ──────────────────────────────────────
-    TAG_DELAY       = float(os.environ.get("TAG_DELAY", 1.5))    # sec between single-tag msgs
-    BATCH_DELAY     = float(os.environ.get("BATCH_DELAY", 3.0))  # sec between batch msgs
-    FLOOD_SLEEP     = int(os.environ.get("FLOOD_SLEEP", 60))     # pyrogram sleep_threshold
-    USERS_PER_MSG   = int(os.environ.get("USERS_PER_MSG", 6))    # mentions per /all and /admin msg
+    TAG_DELAY     = float(os.environ.get("TAG_DELAY",   1.5))
+    BATCH_DELAY   = float(os.environ.get("BATCH_DELAY", 3.0))
+    FLOOD_SLEEP   = int(os.environ.get("FLOOD_SLEEP",   60))
+    USERS_PER_MSG = int(os.environ.get("USERS_PER_MSG", 6))
 
-    # ── Bot Links (used in inline buttons) ────────────────────────────────────
+    # ── Bot Links ─────────────────────────────────────────────────────────────
     UPDATES_CHANNEL = os.environ.get("UPDATES_CHANNEL", "https://t.me/yourchannel")
     SUPPORT_GROUP   = os.environ.get("SUPPORT_GROUP",   "https://t.me/yoursupport")
     BOT_USERNAME    = os.environ.get("BOT_USERNAME",    "YourTagBot")
 
-    # ── Premium Emoji IDs for inline keyboard button icons ────────────────────
-    # These are Telegram document IDs for animated premium emoji.
-    # Run  python fetch_emoji_ids.py  once to find real IDs, then paste below.
-    # Works because your bot owner account has Telegram Premium.
-    # Set to "" to show that button without an emoji icon (no crash).
+    # ══════════════════════════════════════════════════════════════════════════
+    #  PREMIUM EMOJI IDs
+    #  ─────────────────
+    #  Run:  heroku run python fetch_emoji_ids.py
+    #  Paste the printed document IDs below.  Leave "" to use plain emoji.
+    #
+    #  HOW IT WORKS:
+    #   • Telegram renders  <tg-emoji emoji-id="ID">fallback</tg-emoji>
+    #     in HTML parse mode as an animated sticker inline in the text.
+    #   • Every user sees it — Premium is only needed on the BOT OWNER account
+    #     to SEND them (which your bot does on your behalf).
+    #
+    #  Keys are used in te() calls throughout handlers and messages.py.
+    # ══════════════════════════════════════════════════════════════════════════
     PREMIUM_EMOJI = {
-        "add":     "5339085583803244634",   # ➕  Add to Your Group  button  (style: danger/red)
-        "help":    "5972302069770488984",   # 📋  Help & Commands    button  (style: primary/blue)
-        "updates": "5971885530957222021",   # 📢  Updates            button  (style: primary/blue)
-        "support": "5971831809506282660",   # 💬  Support            button  (style: success/green)
-        "back":    "5352759161945867747",   # 🔙  Back               button  (style: primary/blue)
+
+        # ── Inline button icons ───────────────────────────────────────────────
+        "add":       "",   # ➕  Add to Your Group  (red button)
+        "help":      "",   # 📋  Help & Commands    (blue button)
+        "updates":   "",   # 📢  Updates            (blue button)
+        "support":   "",   # 💬  Support            (green button)
+        "back":      "",   # 🔙  Back               (blue button)
+
+        # ── START / HELP / GROUP JOIN messages ───────────────────────────────
+        "tag":       "",   # 🏷️  main bot identity emoji
+        "rocket":    "",   # 🚀  launch / live / go
+        "star":      "",   # 🌟  features / highlights
+        "lightning": "",   # ⚡  controls / speed
+        "shield":    "",   # 🛡️  spam protection
+        "chart":     "",   # 📊  owner tools / stats
+        "wave":      "",   # 👋  hello / welcome
+        "robot":     "",   # 🤖  bot identity in group join
+        "fire":      "",   # 🔥  hype
+        "crown":     "",   # 👑  owner / admin / premium
+        "diamond":   "",   # 💎  premium / special
+        "sparkle":   "",   # ✨  extra flair
+        "target":    "",   # 🎯  mention commands
+        "pause":     "",   # ⏸️  control commands
+        "bulb":      "",   # 💡  tips section
+        "check":     "",   # ✅  success / delivered
+        "cross":     "",   # ❌  stop / failed
+        "warning":   "",   # ⚠️  admin alert
+        "bell":      "",   # 🔔  attention / notification
+        "trophy":    "",   # 🏆  achievement
+        "heart":     "",   # 💖  warm / love
+        "zap":       "",   # ⚡  energy (alias fire)
+        "tada":      "",   # 🎉  celebration
+        "stats":     "",   # 📈  stats / numbers
+        "broadcast": "",   # 📡  broadcast
+        "people":    "",   # 👥  users
+        "chat":      "",   # 💬  groups / chat
+        "done":      "",   # 🏁  tagging complete
+        "stop":      "",   # 🛑  stopped
+        "play":      "",   # ▶️  resumed
+        "mic":       "",   # 🎙️  VC / voice
     }
