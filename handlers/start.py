@@ -100,9 +100,6 @@ def _fallback_back_kb() -> InlineKeyboardMarkup:
 # ══════════════════════════════════════════════════════════════════════════════
 
 START_TEXT = """
-╔══════════════════════════╗
-║   🏷️  **TAG MASTER BOT**  ║
-╚══════════════════════════╝
 
 👋 Hey **{name}**! Welcome!
 
@@ -122,9 +119,6 @@ Here's what I can do for you:
 
 🛡️ **Spam Protection**
    └ Built-in flood-wait guard
-
-📊 **Owner Tools**
-   └ /broadcast & /stats
 
 ━━━━━━━━━━━━━━━━━━━━━━━
 Pick an option below to get started! 👇
@@ -248,7 +242,7 @@ async def on_new_chat_member(client: Client, message: Message) -> None:
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("➕ Add to Your Group",
                                          url=f"https://t.me/{Config.BOT_USERNAME}?startgroup=true")],
-                    [InlineKeyboardButton("📋 Help & Commands", callback_data="cb_help"),
+                    [InlineKeyboardButton("📋 Help ", callback_data="cb_help"),
                      InlineKeyboardButton("📢 Updates", url=Config.UPDATES_CHANNEL)],
                     [InlineKeyboardButton("💬 Support", url=Config.SUPPORT_GROUP)],
                 ])
