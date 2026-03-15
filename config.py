@@ -65,8 +65,8 @@ class Config:
         "crown":     "5825744960858623833",   # 👑  owner / admin / premium
         "diamond":   "5215377245639549895",   # 💎  premium / special
         "sparkle":   "5451636889717062286",   # ✨  extra flair
-        "target":    "6321322884748806084,    # 🎯  mention commands
-        "pause":     "5359543311897998264,    # ⏸️  control commands
+        "target":    "6321322884748806084",    # 🎯  mention commands
+        "pause":     "5359543311897998264",    # ⏸️  control commands
         "bulb":      "5323743114513373152",   # 💡  tips section
         "check":     "5852871561983299073",   # ✅  success / delivered
         "cross":     "5796291784539639311",   # ❌  stop / failed
