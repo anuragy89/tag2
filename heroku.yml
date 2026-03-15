@@ -1,3 +1,6 @@
 build:
-  docker:
-    web: Dockerfile
+  languages:
+    - python
+
+run:
+  worker: python bot.py
