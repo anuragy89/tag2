@@ -77,6 +77,7 @@ async def main() -> None:
     from handlers.tagging import (
         cmd_hitag, cmd_entag, cmd_gmtag, cmd_gntag,
         cmd_tagall, cmd_jtag, cmd_admin_tag, cmd_all_tag,
+        cmd_vctag,
     )
     from handlers.control import cmd_stop, cmd_pause, cmd_resume
     from handlers.broadcast import cmd_broadcast, cmd_stats
@@ -106,6 +107,7 @@ async def main() -> None:
     app.add_handler(MessageHandler(cmd_gntag,  filters.command("gntag")  & G))
     app.add_handler(MessageHandler(cmd_tagall, filters.command("tagall") & G))
     app.add_handler(MessageHandler(cmd_jtag,   filters.command("jtag")   & G))
+    app.add_handler(MessageHandler(cmd_vctag,  filters.command("vctag")  & G))
 
     # /admin or @admin — any member can call this
     app.add_handler(MessageHandler(
