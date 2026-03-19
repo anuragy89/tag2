@@ -79,7 +79,6 @@ def _fallback_back_kb() -> InlineKeyboardMarkup:
 
 def start_text(name: str) -> str:
     return (
-       
         f"{te('wave','👋')} Hey <b>{name}</b>! Welcome!\n\n"
         f"I'm the most powerful <b>Tagging Bot</b> on Telegram "
         f"{te('rocket','🚀')}\n\n"
