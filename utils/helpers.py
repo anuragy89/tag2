@@ -88,6 +88,16 @@ async def is_admin(client: Client, chat_id: int, user_id: int) -> bool:
         return False
 
 
+async def is_bot_admin(client: Client, chat_id: int) -> bool:
+    """Return True if the bot itself is admin/owner of chat_id."""
+    try:
+        bot_id = client.me.id if client.me else (await client.get_me()).id
+        return await is_admin(client, chat_id, bot_id)
+    except Exception as e:
+        log.error("is_bot_admin error in chat %s: %s", chat_id, e)
+        return False
+
+
 # ── Decorator: admin-only command ────────────────────────────────────────────
 
 def admin_only(func):
