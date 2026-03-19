@@ -409,4 +409,12 @@ def get_msg(tag_type: str, mention: str, custom: str = "") -> str:
 
 
 def build_mention(user_id: int, name: str) -> str:
+    """Markdown format — used in /hitag /entag /gmtag /gntag /tagall /jtag /all /admin."""
     return f"[{name}](tg://user?id={user_id})"
+
+
+def build_mention_html(user_id: int, name: str) -> str:
+    """HTML format — used in /vctag and any HTML parse_mode message."""
+    import html as _html
+    safe_name = _html.escape(str(name))
+    return f'<a href="tg://user?id={user_id}">{safe_name}</a>'
