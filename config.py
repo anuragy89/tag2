@@ -50,7 +50,7 @@ class Config:
         "help":      "5971885530957222021",   # 📋  Help & Commands    (blue button)
         "updates":   "6021418126061605425",   # 📢  Updates            (blue button)
         "support":   "5972302069770488984",   # 💬  Support            (green button)
-        "back":      "5971831809506282660",   # 🔙  Back               (blue button)
+        "back":      "5352759161945867747",   # 🔙  Back               (blue button)
 
         # ── START / HELP / GROUP JOIN messages ───────────────────────────────
         "tag":       "5888620056551625531",   # 🏷️  main bot identity emoji
@@ -59,14 +59,14 @@ class Config:
         "lightning": "6316383393185533398",   # ⚡  controls / speed
         "shield":    "5251203410396458957",   # 🛡️  spam protection
         "chart":     "5231200819986047254",   # 📊  owner tools / stats
-        "wave":      "5407076281898512830",   # v  hello / welcome
+        "wave":      "5407076281898512830",   # 👋  hello / welcome
         "robot":     "5397824497141170866",   # 🤖  bot identity in group join
         "fire":      "5424972470023104089",   # 🔥  hype
         "crown":     "5825744960858623833",   # 👑  owner / admin / premium
         "diamond":   "5215377245639549895",   # 💎  premium / special
         "sparkle":   "5451636889717062286",   # ✨  extra flair
-        "target":    "6321322884748806084",    # 🎯  mention commands
-        "pause":     "5359543311897998264",    # ⏸️  control commands
+        "target":    "5971789963639917544",   # 🎯  mention commands
+        "pause":     "5359543311897998264",   # ⏸️  control commands
         "bulb":      "5323743114513373152",   # 💡  tips section
         "check":     "5852871561983299073",   # ✅  success / delivered
         "cross":     "5796291784539639311",   # ❌  stop / failed
@@ -81,7 +81,7 @@ class Config:
         "people":    "5891207662678317861",   # 👥  users
         "chat":      "5190547876492615432",   # 💬  groups / chat
         "done":      "5927066550791048673",   # 🏁  tagging complete
-        "stop":      "5366040905927113475",   # 🛑  stopped
-        "play":      "5972265777296838427",   # ▶️  resumed
+        "stop":      "5972265777296838427",   # 🛑  stopped
+        "play":      "5366040905927113475",   # ▶️  resumed
         "mic":       "5294339927318739359",   # 🎙️  VC / voice
     }
