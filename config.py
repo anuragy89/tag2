@@ -81,7 +81,7 @@ class Config:
         "people":    "5891207662678317861",   # 👥  users
         "chat":      "5190547876492615432",   # 💬  groups / chat
         "done":      "5927066550791048673",   # 🏁  tagging complete
-        "stop":      "5972265777296838427",   # 🛑  stopped
+        "stop":      "5366040905927113475",   # 🛑  stopped
         "play":      "5366040905927113475",   # ▶️  resumed
         "mic":       "5294339927318739359",   # 🎙️  VC / voice
     }
