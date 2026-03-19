@@ -14,7 +14,7 @@ import asyncio
 import logging
 import random
 
-from pyrogram import Client
+from pyrogram import Client, enums
 from pyrogram.errors import FloodWait, RPCError
 from pyrogram.types import Message
 
@@ -82,9 +82,12 @@ async def _run_tag_loop(
         if tagged > 0 and tagged % 10 == 0:
             try:
                 await progress_msg.edit_text(
+                    
                     f"{te('tag','🏷️')} **Tagging in progress…**\n\n"
                     f"✅ Tagged : `{tagged}` / `{total}`\n"
                     f"{te('lightning','⚡')} Use /stop or /pause to control."
+                ,
+                    parse_mode=enums.ParseMode.HTML,
                 )
             except Exception:
                 pass
@@ -103,9 +106,11 @@ async def _run_tag_loop(
         )
 
     try:
-        await progress_msg.edit_text(finish)
+        await progress_msg.edit_text(finish,
+            parse_mode=enums.ParseMode.HTML,
+        )
     except Exception:
-        await safe_send(client, chat_id, finish)
+        await safe_send(client, chat_id, finish, parse_mode=enums.ParseMode.HTML)
 
     tag_manager.stop(chat_id)
 
@@ -124,28 +129,40 @@ async def _generic_tagger(
 
     if tag_manager.is_active(chat.id):
         await message.reply_text(
+            
             f"{te('warning','⚠️')} **A tagging session is already running!**\n\n"
             "Use /stop first, then start a new one."
+        ,
+            parse_mode=enums.ParseMode.HTML,
         )
         return
 
     progress_msg = await message.reply_text(
+        
         f"⏳ **{type_label} initialising…**\n\nCollecting members — please wait."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     members = await get_members(client, chat.id)
 
     if not members:
         await progress_msg.edit_text(
+            
             f"{te('cross','❌')} No taggable members found.\n"
             "_Make sure I have permission to view group members._"
+        ,
+            parse_mode=enums.ParseMode.HTML,
         )
         return
 
     await progress_msg.edit_text(
+        
         f"{te('rocket','🚀')} **{type_label} started!**\n\n"
         f"👥 Members found : `{len(members)}`\n"
         f"{te('lightning','⚡')} Use /pause · /resume · /stop to control."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     session = tag_manager.start(chat.id)
@@ -218,6 +235,8 @@ async def cmd_admin_tag(client: Client, message: Message) -> None:
 
     progress_msg = await message.reply_text(
         "📢 **Fetching admin list…** Please wait."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     admins: list = []
@@ -225,7 +244,9 @@ async def cmd_admin_tag(client: Client, message: Message) -> None:
         admins.append((uid, name))
 
     if not admins:
-        await progress_msg.edit_text(f"{te('cross','❌')} No admins found in this group.")
+        await progress_msg.edit_text(f"{te('cross','❌')} No admins found in this group.",
+            parse_mode=enums.ParseMode.HTML,
+        )
         return
 
     chunks = [
@@ -273,23 +294,32 @@ async def cmd_all_tag(client: Client, message: Message) -> None:
     if tag_manager.is_active(chat.id):
         await message.reply_text(
             "⚠️ **Another tagging session is active.**\n\nUse /stop first."
+        ,
+            parse_mode=enums.ParseMode.HTML,
         )
         return
 
     progress_msg = await message.reply_text(
         "⏳ **Collecting members…** Please wait."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     members = await get_members(client, chat.id)
 
     if not members:
-        await progress_msg.edit_text(f"{te('cross','❌')} No members found.")
+        await progress_msg.edit_text(f"{te('cross','❌')} No members found.",
+            parse_mode=enums.ParseMode.HTML,
+        )
         return
 
     await progress_msg.edit_text(
+        
         f"🚀 **All-Tag started!**\n\n"
         f"👥 Members found : `{len(members)}`\n"
         f"⏸️ Use /pause · /resume · /stop to control."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     session = tag_manager.start(chat.id)
@@ -335,9 +365,11 @@ async def cmd_all_tag(client: Client, message: Message) -> None:
         )
 
         try:
-            await progress_msg.edit_text(finish)
+            await progress_msg.edit_text(finish,
+                parse_mode=enums.ParseMode.HTML,
+            )
         except Exception:
-            await safe_send(client, chat.id, finish)
+            await safe_send(client, chat.id, finish, parse_mode=enums.ParseMode.HTML)
 
         tag_manager.stop(chat.id)
 
@@ -356,14 +388,20 @@ async def cmd_vctag(client: Client, message: Message) -> None:
 
     if tag_manager.is_active(chat.id):
         await message.reply_text(
+            
             f"{te('warning','⚠️')} **A tagging session is already running!**\n\n"
             "Use /stop first, then start /vctag."
+        ,
+            parse_mode=enums.ParseMode.HTML,
         )
         return
 
     progress_msg = await message.reply_text(
+        
         f"{te('mic','🎙️')} **VC Tag initialising…**\n\n"
         "Fetching members — online members first! 🔴"
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     # get_members already returns list sorted online → recently → last_week
@@ -371,15 +409,21 @@ async def cmd_vctag(client: Client, message: Message) -> None:
 
     if not members:
         await progress_msg.edit_text(
+            
             f"{te('cross','❌')} No taggable members found."
+        ,
+            parse_mode=enums.ParseMode.HTML,
         )
         return
 
     await progress_msg.edit_text(
+        
         f"{te('mic','🎙️')} **VC Tag started!** 🔴 LIVE\n\n"
         f"👥 Members : `{len(members)}`\n"
         f"🟢 Online first → 🟡 Recently → 🔵 Last week\n"
         f"{te('lightning','⚡')} Use /pause · /resume · /stop to control."
+    ,
+        parse_mode=enums.ParseMode.HTML,
     )
 
     session = tag_manager.start(chat.id)
@@ -410,9 +454,12 @@ async def cmd_vctag(client: Client, message: Message) -> None:
             if tagged > 0 and tagged % 10 == 0:
                 try:
                     await progress_msg.edit_text(
+                        
                         f"{te('mic','🎙️')} **VC Tag in progress…** 🔴\n\n"
                         f"✅ Invited : `{tagged}` / `{len(members)}`\n"
                         f"{te('lightning','⚡')} Use /stop or /pause to control."
+                    ,
+                        parse_mode=enums.ParseMode.HTML,
                     )
                 except Exception:
                     pass
@@ -432,9 +479,11 @@ async def cmd_vctag(client: Client, message: Message) -> None:
             )
 
         try:
-            await progress_msg.edit_text(finish)
+            await progress_msg.edit_text(finish,
+                parse_mode=enums.ParseMode.HTML,
+            )
         except Exception:
-            await safe_send(client, chat.id, finish)
+            await safe_send(client, chat.id, finish, parse_mode=enums.ParseMode.HTML)
 
         tag_manager.stop(chat.id)
 
